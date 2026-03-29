@@ -44,5 +44,6 @@
       "typedRoutes": true,
       "reactCompiler": true
     }
-  }
+  },
+
 }
