@@ -1,10 +1,10 @@
+import { useUser } from '@clerk/expo';
 import ListHeading from '@/components/list-heading';
 import SubscriptionCard from '@/components/subscription-card';
 import UpcomingSubscriptionCard from '@/components/upcoming-subscription-card';
 import {
   HOME_BALANCE,
   HOME_SUBSCRIPTIONS,
-  HOME_USER,
   UPCOMING_SUBSCRIPTIONS,
 } from '@/constants/data';
 import { icons } from '@/constants/icons';
@@ -20,6 +20,9 @@ const SafeAreaView = styled(RNSafeAreaView);
 
 export default function Index() {
   const [expandedSubId, setExpandedSubId] = useState<string | null>(null);
+  const { user } = useUser();
+  const displayName = user?.firstName || user?.fullName || 'there';
+  const avatarSource = user?.imageUrl ? { uri: user.imageUrl } : images.avatar;
 
   return (
     <SafeAreaView className="flex-1 bg-background p-5">
@@ -28,8 +31,8 @@ export default function Index() {
           <>
             <View className="home-header">
               <View className="home-user">
-                <Image source={images.avatar} className="home-avatar" />
-                <Text className="home-user-name">{HOME_USER.name}</Text>
+                <Image source={avatarSource} className="home-avatar" />
+                <Text className="home-user-name">{displayName}</Text>
               </View>
 
               <Image source={icons.add} className="home-add-icon" />
