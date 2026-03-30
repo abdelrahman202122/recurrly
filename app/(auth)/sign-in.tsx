@@ -1,13 +1,14 @@
-import {View, Text} from 'react-native'
-import React from 'react'
-import {Link} from "expo-router";
+import { Link } from 'expo-router';
+import React from 'react';
+import { Text } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 const SignIn = () => {
   return (
-    <View>
+    <SafeAreaView className="flex-1 items-center justify-center bg-background">
       <Text>SignIn</Text>
       <Link href="/(tabs)">Home</Link>
-    </View>
-  )
-}
-export default SignIn
+    </SafeAreaView>
+  );
+};
+export default SignIn;
