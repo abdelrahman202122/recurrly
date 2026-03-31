@@ -8,7 +8,7 @@ import {
   type AuthFieldErrors,
 } from '@/lib/auth';
 import { useSignUp } from '@clerk/expo';
-import { Link, type Href, useRouter } from 'expo-router';
+import { Link, useRouter, type Href } from 'expo-router';
 import React from 'react';
 import { Pressable, Text, View } from 'react-native';
 
@@ -26,7 +26,7 @@ export default function SignUp() {
   const [fieldErrors, setFieldErrors] = React.useState<AuthFieldErrors>({});
   const [resendIn, setResendIn] = React.useState(0);
 
-  const isBusy = fetchStatus === 'fetching';
+  const isBusy = !signUp || fetchStatus === 'fetching';
   const needsEmailVerification =
     signUp?.status === 'missing_requirements' &&
     signUp.unverifiedFields.includes('email_address') &&
@@ -67,7 +67,9 @@ export default function SignUp() {
     await signUp.finalize({
       navigate: ({ session, decorateUrl }) => {
         if (session?.currentTask) {
-          setFormError('Your account was created, but one more security step is required before entry.');
+          setFormError(
+            'Your account was created, but one more security step is required before entry.',
+          );
           return;
         }
 
@@ -118,13 +120,7 @@ export default function SignUp() {
     } catch (error) {
       applyClerkError(error);
     }
-  }, [
-    applyClerkError,
-    confirmPassword,
-    emailAddress,
-    password,
-    signUp,
-  ]);
+  }, [applyClerkError, confirmPassword, emailAddress, password, signUp]);
 
   const handleVerify = React.useCallback(async () => {
     if (!signUp) {
@@ -150,7 +146,9 @@ export default function SignUp() {
         return;
       }
 
-      setFormError('We verified that code, but the account setup is not complete yet.');
+      setFormError(
+        'We verified that code, but the account setup is not complete yet.',
+      );
     } catch (error) {
       applyClerkError(error);
     }
@@ -176,7 +174,11 @@ export default function SignUp() {
       <AuthShell
         title="Verify your email"
         subtitle="We sent a confirmation code to protect your account before your workspace opens."
-        trustItems={['New account security', 'Quick email check', 'Protected billing access']}
+        trustItems={[
+          'New account security',
+          'Quick email check',
+          'Protected billing access',
+        ]}
         footer={
           <View className="auth-link-row">
             <Text className="auth-link-copy">Already verified elsewhere?</Text>
@@ -189,7 +191,9 @@ export default function SignUp() {
         <View className="auth-form">
           {formError ? (
             <View className="rounded-2xl border border-destructive/20 bg-destructive/10 px-4 py-3">
-              <Text className="text-sm font-sans-medium text-destructive">{formError}</Text>
+              <Text className="text-sm font-sans-medium text-destructive">
+                {formError}
+              </Text>
             </View>
           ) : null}
 
@@ -225,7 +229,9 @@ export default function SignUp() {
             onPress={handleResend}
           >
             <Text className="auth-secondary-button-text">
-              {resendIn > 0 ? `Send a new code in ${resendIn}s` : 'Send a new code'}
+              {resendIn > 0
+                ? `Send a new code in ${resendIn}s`
+                : 'Send a new code'}
             </Text>
           </Pressable>
         </View>
@@ -251,7 +257,9 @@ export default function SignUp() {
       <View className="auth-form">
         {formError ? (
           <View className="rounded-2xl border border-destructive/20 bg-destructive/10 px-4 py-3">
-            <Text className="text-sm font-sans-medium text-destructive">{formError}</Text>
+            <Text className="text-sm font-sans-medium text-destructive">
+              {formError}
+            </Text>
           </View>
         ) : null}
 
@@ -310,7 +318,8 @@ export default function SignUp() {
 
         <View className="rounded-2xl border border-border bg-background px-4 py-3">
           <Text className="text-sm font-sans-medium text-muted-foreground">
-            By continuing, you agree to receive account security and subscription reminders at this email.
+            By continuing, you agree to receive account security and
+            subscription reminders at this email.
           </Text>
         </View>
 

@@ -1,6 +1,5 @@
 import images from '@/constants/images';
 import { useClerk, useUser } from '@clerk/expo';
-import { useRouter } from 'expo-router';
 import { styled } from 'nativewind';
 import React from 'react';
 import { ActivityIndicator, Image, Pressable, Text, View } from 'react-native';
@@ -11,22 +10,25 @@ const SafeAreaView = styled(RNSafeAreaView);
 const Settings = () => {
   const { user } = useUser();
   const { signOut } = useClerk();
-  const router = useRouter();
   const [isSigningOut, setIsSigningOut] = React.useState(false);
+  const [signOutError, setSignOutError] = React.useState('');
 
   const displayName = user?.fullName || user?.firstName || 'Recurrly member';
   const avatarSource = user?.imageUrl ? { uri: user.imageUrl } : images.avatar;
 
   const handleSignOut = React.useCallback(async () => {
     setIsSigningOut(true);
+    setSignOutError('');
 
     try {
       await signOut();
-      router.replace('/(auth)/sign-in');
+    } catch (error) {
+      console.error('Failed to sign out:', error);
+      setSignOutError('We could not sign you out right now. Please try again.');
     } finally {
       setIsSigningOut(false);
     }
-  }, [router, signOut]);
+  }, [signOut]);
 
   return (
     <SafeAreaView className="flex-1 p-5 bg-background">
@@ -42,7 +44,9 @@ const Settings = () => {
           <View className="flex-row items-center gap-4">
             <Image source={avatarSource} className="size-16 rounded-full" />
             <View className="flex-1">
-              <Text className="text-xl font-sans-bold text-primary">{displayName}</Text>
+              <Text className="text-xl font-sans-bold text-primary">
+                {displayName}
+              </Text>
               <Text className="mt-1 text-sm font-sans-medium text-muted-foreground">
                 {user?.primaryEmailAddress?.emailAddress || 'No primary email'}
               </Text>
@@ -50,11 +54,22 @@ const Settings = () => {
           </View>
 
           <View className="mt-5 rounded-2xl border border-border bg-background px-4 py-4">
-            <Text className="text-sm font-sans-semibold text-primary">Session security</Text>
+            <Text className="text-sm font-sans-semibold text-primary">
+              Session security
+            </Text>
             <Text className="mt-2 text-sm font-sans-medium text-muted-foreground">
-              Your account is protected with secure session storage and email verification.
+              Your account is protected with secure session storage and email
+              verification.
             </Text>
           </View>
+
+          {signOutError ? (
+            <View className="mt-4 rounded-2xl border border-destructive/20 bg-destructive/10 px-4 py-3">
+              <Text className="text-sm font-sans-medium text-destructive">
+                {signOutError}
+              </Text>
+            </View>
+          ) : null}
 
           <Pressable
             className="mt-5 items-center rounded-2xl bg-primary py-4"
@@ -64,7 +79,9 @@ const Settings = () => {
             {isSigningOut ? (
               <ActivityIndicator color="#fff9e3" />
             ) : (
-              <Text className="text-base font-sans-bold text-background">Sign out</Text>
+              <Text className="text-base font-sans-bold text-background">
+                Sign out
+              </Text>
             )}
           </Pressable>
         </View>

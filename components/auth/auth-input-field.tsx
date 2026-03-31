@@ -29,7 +29,7 @@ export default function AuthInputField({
     <View className="auth-field">
       <View className="flex-row items-center justify-between gap-3">
         <Text className="auth-label">{label}</Text>
-        {actionLabel ? (
+        {actionLabel && onActionPress ? (
           <Pressable onPress={onActionPress} hitSlop={8}>
             <Text className="text-xs font-sans-semibold text-accent">
               {actionLabel}

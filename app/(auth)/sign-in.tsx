@@ -7,12 +7,13 @@ import {
   validateSignIn,
   type AuthFieldErrors,
 } from '@/lib/auth';
-import { useSignIn } from '@clerk/expo';
-import { Link, type Href, useRouter } from 'expo-router';
+import { useClerk, useSignIn } from '@clerk/expo';
+import { Link, useRouter, type Href } from 'expo-router';
 import React from 'react';
 import { Pressable, Text, View } from 'react-native';
 
 export default function SignIn() {
+  const clerk = useClerk();
   const { signIn, fetchStatus } = useSignIn();
   const router = useRouter();
 
@@ -24,8 +25,13 @@ export default function SignIn() {
   const [fieldErrors, setFieldErrors] = React.useState<AuthFieldErrors>({});
   const [resendIn, setResendIn] = React.useState(0);
 
-  const isBusy = fetchStatus === 'fetching';
-  const needsEmailCode = signIn?.status === 'needs_client_trust';
+  const isBusy = !signIn || fetchStatus === 'fetching';
+  const needsEmailCode =
+    signIn?.status === 'needs_client_trust' ||
+    (signIn?.status === 'needs_second_factor' &&
+      signIn.supportedSecondFactors.some(
+        (factor) => factor.strategy === 'email_code',
+      ));
 
   React.useEffect(() => {
     if (!resendIn) {
@@ -54,6 +60,31 @@ export default function SignIn() {
     setFormError(normalized.formError || '');
   }, []);
 
+  const startEmailCodeChallenge = React.useCallback(async () => {
+    if (!signIn) {
+      return false;
+    }
+
+    const emailCodeFactor = signIn.supportedSecondFactors.find(
+      (factor) => factor.strategy === 'email_code',
+    );
+
+    if (!emailCodeFactor) {
+      return false;
+    }
+
+    await signIn.mfa.sendEmailCode();
+    setFormError('');
+    setResendIn(30);
+    return true;
+  }, [signIn]);
+
+  const handoffToTaskFlow = React.useCallback(async () => {
+    await clerk.redirectToTasks({
+      signInFallbackRedirectUrl: '/(auth)/sign-in',
+    });
+  }, [clerk]);
+
   const completeSignIn = React.useCallback(async () => {
     if (!signIn) {
       return;
@@ -62,7 +93,9 @@ export default function SignIn() {
     await signIn.finalize({
       navigate: ({ session, decorateUrl }) => {
         if (session?.currentTask) {
-          setFormError('One more security step is required before we can open your workspace.');
+          setFormError(
+            'One more security step is required before we can open your workspace.',
+          );
           return;
         }
 
@@ -109,25 +142,30 @@ export default function SignIn() {
       }
 
       if (signIn.status === 'needs_client_trust') {
-        const emailCodeFactor = signIn.supportedSecondFactors.find(
-          (factor) => factor.strategy === 'email_code',
-        );
+        const startedEmailCode = await startEmailCodeChallenge();
 
-        if (!emailCodeFactor) {
+        if (!startedEmailCode) {
           setFormError(
             'Your account needs a different security step. Please try again from the same device.',
           );
-          return;
         }
-
-        await signIn.mfa.sendEmailCode();
-        setResendIn(30);
         return;
       }
 
       if (signIn.status === 'needs_second_factor') {
+        const startedEmailCode = await startEmailCodeChallenge();
+
+        if (startedEmailCode) {
+          return;
+        }
+
+        if (signIn.supportedSecondFactors.length > 0) {
+          await handoffToTaskFlow();
+          return;
+        }
+
         setFormError(
-          'Additional verification is required. Please complete the next step from a trusted device.',
+          'Additional verification is required, but no supported second factor is available for this sign-in.',
         );
         return;
       }
@@ -136,7 +174,15 @@ export default function SignIn() {
     } catch (error) {
       applyClerkError(error);
     }
-  }, [applyClerkError, completeSignIn, emailAddress, password, signIn]);
+  }, [
+    applyClerkError,
+    completeSignIn,
+    emailAddress,
+    handoffToTaskFlow,
+    password,
+    signIn,
+    startEmailCodeChallenge,
+  ]);
 
   const handleVerify = React.useCallback(async () => {
     if (!signIn) {
@@ -160,7 +206,9 @@ export default function SignIn() {
         return;
       }
 
-      setFormError('The code was accepted, but we still could not finish signing you in.');
+      setFormError(
+        'The code was accepted, but we still could not finish signing you in.',
+      );
     } catch (error) {
       applyClerkError(error);
     }
@@ -198,7 +246,11 @@ export default function SignIn() {
       <AuthShell
         title="Check your inbox"
         subtitle="Enter the verification code sent to your email to confirm it is really you."
-        trustItems={['Private account access', 'Timed security code', 'Trusted device check']}
+        trustItems={[
+          'Private account access',
+          'Timed security code',
+          'Trusted device check',
+        ]}
         footer={
           <View className="auth-link-row">
             <Text className="auth-link-copy">Need a different account?</Text>
@@ -211,7 +263,9 @@ export default function SignIn() {
         <View className="auth-form">
           {formError ? (
             <View className="rounded-2xl border border-destructive/20 bg-destructive/10 px-4 py-3">
-              <Text className="text-sm font-sans-medium text-destructive">{formError}</Text>
+              <Text className="text-sm font-sans-medium text-destructive">
+                {formError}
+              </Text>
             </View>
           ) : null}
 
@@ -246,7 +300,9 @@ export default function SignIn() {
             onPress={handleResend}
           >
             <Text className="auth-secondary-button-text">
-              {resendIn > 0 ? `Send a new code in ${resendIn}s` : 'Send a new code'}
+              {resendIn > 0
+                ? `Send a new code in ${resendIn}s`
+                : 'Send a new code'}
             </Text>
           </Pressable>
         </View>
@@ -270,7 +326,9 @@ export default function SignIn() {
       <View className="auth-form">
         {formError ? (
           <View className="rounded-2xl border border-destructive/20 bg-destructive/10 px-4 py-3">
-            <Text className="text-sm font-sans-medium text-destructive">{formError}</Text>
+            <Text className="text-sm font-sans-medium text-destructive">
+              {formError}
+            </Text>
           </View>
         ) : null}
 
@@ -310,7 +368,8 @@ export default function SignIn() {
 
         <View className="rounded-2xl border border-border bg-background px-4 py-3">
           <Text className="text-sm font-sans-medium text-muted-foreground">
-            We only use your email for account access, verification, and important billing alerts.
+            We only use your email for account access, verification, and
+            important billing alerts.
           </Text>
         </View>
 
@@ -319,7 +378,9 @@ export default function SignIn() {
           disabled={isBusy}
           onPress={handleSubmit}
         >
-          <Text className="auth-button-text">{isBusy ? 'Signing in...' : 'Sign in'}</Text>
+          <Text className="auth-button-text">
+            {isBusy ? 'Signing in...' : 'Sign in'}
+          </Text>
         </Pressable>
       </View>
     </AuthShell>
